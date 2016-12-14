@@ -17,21 +17,28 @@ if (!class_exists('CGIT_Log_Spooler')) {
     class CGIT_Log_Spooler
     {
         /**
-         * Array of log directories available for download. Logs are added to
-         * this array by using the cgit_log_spooler filter. See docs for
-         * full information on filtering this array.
+         * Array of sources for CSVs available for download. Logs are added to
+         * this array by using the cgit_log_spooler filter. Can be a file or a query.
+         * See docs for full information on filtering this array.
          *
          * @var  array
          */
-        static private $log_dirs = array();
+        static private $log_sources = array();
 
         /**
-         * Array of available files for download. Populated by scanning log
-         * directories
+         * Array of available resources for download. Populated by scanning log
+         * directories and adding in results of queries sent
          *
          * @var  array
          */
-        static private $log_files = array();
+        static private $logs = array();
+
+        /**
+         * The WordPress database object stored here for our comfort and convenience
+         *
+         * @var object
+         */
+        static private $wpdb;
 
         /**
          * Loader method
@@ -40,8 +47,11 @@ if (!class_exists('CGIT_Log_Spooler')) {
          */
         static function on_load()
         {
+            global $wpdb;
+            self::$wpdb = $wpdb;
+
             // The log directory array is populated by filters
-            self::$log_dirs = apply_filters('cgit_log_spooler', self::$log_dirs);
+            self::$log_sources = apply_filters('cgit_log_spooler', self::$log_sources);
 
             // Add WordPress menu
             add_action('admin_menu', array(__CLASS__,'add_download_page'));
@@ -79,22 +89,37 @@ if (!class_exists('CGIT_Log_Spooler')) {
         static function scan_for_logs()
         {
             // Loop through logs array
-            foreach (self::$log_dirs as $key => $settings) {
+            foreach (self::$log_sources as $key => $settings) {
 
-                // Disregard anything without a `dir` or `label` index
-                if (!isset($settings['dir']) || !isset($settings['label'])) {
+                // Disregard anything without a `dir`, `label` or `query` index
+                if (empty($settings['label']) ||
+                        (empty($settings['dir']) && empty($settings['query']))
+                ) {
                     continue;
                 }
 
-                // Get the CSV files from a directory
-                $files = self::read_directory($settings['dir']);
+                if (!empty($settings['dir'])) {
+                    // Get the CSV files from a directory
+                    $files = self::read_directory($settings['dir']);
 
-                // Add to the list of files
-                if ($files) {
-                    self::$log_files[$key] = $files;
+                    // Add to the list of files
+                    if ($files) {
+                        self::$logs[$key] = array(
+                            'files' => $files
+                        );
+                    }
+                } else {
+                    // Run the query
+                    if ($result = self::$wpdb->get_results($settings['query'], ARRAY_A)) {
+                        if (self::$wpdb->num_rows)
+                        self::$logs[$key] = array(
+                            'result' => $result
+                        );
+                    }
                 }
             }
         }
+
 
         /**
          * Read a log directory for CSV files
@@ -131,21 +156,30 @@ if (!class_exists('CGIT_Log_Spooler')) {
 
             <p>Download logs in .CSV format suitable for import into spreadsheet applications such as Excel.</p>
 
-            <?php if (!self::$log_files) : ?>
+            <?php if (!self::$logs) : ?>
 
                 <p>There are no logs currently available for download.</p>
 
             <?php else : ?>
 
-                <?php foreach (self::$log_files as $key => $files) : ?>
+                <?php foreach (self::$logs as $key => $resources) : ?>
 
-                    <h3><?=self::$log_dirs[$key]['label']?></h3>
+                    <?php if (count($resources)==1 && !empty($resources['result'])) : ?>
 
-                    <?php foreach ($files as $index => $file) : ?>
+                        <p> &bull; <a href="<?php echo $_SERVER['REQUEST_URI']; ?>&amp;cgit_log_key=<?=$key; ?>&amp;cgit_log_index=result"><?=self::$log_sources[$key]['label']?></a></p>
 
-                        <p> &bull; <a href="<?php echo $_SERVER['REQUEST_URI']; ?>&amp;cgit_log_key=<?=$key; ?>&amp;cgit_log_index=<?=$index?>"><?php echo $file; ?></a></p>
+                    <?php else : ?>
 
-                    <?php endforeach ?>
+                        <h3><?=self::$log_sources[$key]['label']?></h3>
+
+                        <?php foreach ($resources['files'] as $index => $file) : ?>
+
+
+                            <p> &bull; <a href="<?php echo $_SERVER['REQUEST_URI']; ?>&amp;cgit_log_key=<?=$key; ?>&amp;cgit_log_index=<?=$index?>"><?php echo $file; ?></a></p>
+
+                        <?php endforeach ?>
+
+                    <?php endif; ?>
 
                 <?php endforeach ?>
 
@@ -153,6 +187,7 @@ if (!class_exists('CGIT_Log_Spooler')) {
 
         </div><?php
         }
+
 
         /**
          * Spool a CSV download if one has been requested.
@@ -165,20 +200,55 @@ if (!class_exists('CGIT_Log_Spooler')) {
                   isset($_GET['cgit_log_key']) &&
                   isset($_GET['cgit_log_index']) &&
                   current_user_can('edit_pages') &&
-                  array_key_exists($_GET['cgit_log_key'], self::$log_dirs) &&
-                  array_key_exists($_GET['cgit_log_index'], self::$log_files[$_GET['cgit_log_key']])
+                  array_key_exists($_GET['cgit_log_key'], self::$log_sources) &&
+                  array_key_exists($_GET['cgit_log_key'], self::$logs)
             ) {
 
-                // Build the filename and path
-                $path = self::$log_dirs[$_GET['cgit_log_key']]['dir'] . '/';
-                $filename = self::$log_files[$_GET['cgit_log_key']][$_GET['cgit_log_index']];
+                $key = $_GET['cgit_log_key'];
+                $resource = self::$logs[$key];
 
-                header("Content-type: text/csv");
-                header("Content-Disposition: attachment; filename=" . $filename);
-                header("Pragma: no-cache");
-                header("Expires: 0");
-                readfile($path . $filename);
-                exit();
+                // Is it a file or a query result?
+
+                if (!empty($resource['files'])) {
+
+                    if (array_key_exists($key, $resource['files'])) {
+
+                        // Build the filename and path
+                        $path = self::$log_sources[$key]['dir'] . '/';
+                        $filename = $resource['files'][$key];
+
+                        header("Content-type: text/csv");
+                        header("Content-Disposition: attachment; filename=" . $filename);
+                        header("Pragma: no-cache");
+                        header("Expires: 0");
+                        readfile($path . $filename);
+                        exit();
+                    }
+                } else if (!empty($resource['result'])) {
+
+                    $first_row = true;
+
+                    foreach ($resource['result'] as $row) {
+
+                        $filename = self::$log_sources[$key]['label'] . '.csv';
+
+                        header("Content-type: text/csv");
+                        header("Content-Disposition: attachment; filename=" . $filename);
+                        header("Pragma: no-cache");
+                        header("Expires: 0");
+
+                        $fh = fopen('php://output','w');
+                        if ($first_row) {
+                            // Spool the header
+                            fputcsv($fh, array_keys($row));
+                            $first_row = false;
+                        }
+
+                        fputcsv($fh, $row);
+                        fclose($fh);
+                        exit();
+                    }
+                }
             }
         }
     }
