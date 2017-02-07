@@ -44,8 +44,50 @@ Instead of specifying a 'dir', just give a 'query' instead. The results of the q
 
             return $logs;
         }
-        add_filter('cgit_log_spooler', 'my_plugin_logs');
+        add_filter('cgit_log_spooler', 'my_plugin_query_logs');
     }
-    add_action('init', 'my_plugin_set_logs', 1);
+    add_action('init', 'my_plugin_set_query_logs', 1);
 
 **Note that this will not perform any SQL escaping on the supplied query.**
+
+## Adding callback results
+
+You can provide arrays of custom data instead. The results of the passed data will be spooled with the column names dictacted by array keys in a header row.
+
+*Example:*
+
+    function example_callback() {
+
+        global $wpdb;
+
+        $json = $wpdb->get_results("SELECT field_data as 'Data', date as 'Date and time', id as 'ID' FROM sirn_cgit_postman_log WHERE form_id = 'membership' ORDER BY date DESC");
+
+        foreach ($json as $row) {
+
+            $data = $json_decode($row->Data);
+
+            $id = $row->ID;
+            $callback[$id]['Name'] = $data->username->value;
+            $callback[$id]['DOB'] = $data->dob->value;
+            $callback[$id]['Phone'] = $data->tel->value;
+
+        }
+
+        return $callback;
+    }
+
+    function my_plugin_set_callback_logs() {
+        function my_plugin_callback_logs($logs) {
+
+            $logs['my-custom-callback-log'] = array(
+                'label' => 'Newsletter signups',
+                'callback' => example_callback()
+            );
+
+            return $logs;
+        }
+        add_filter('cgit_log_spooler', 'my_plugin_callback_logs');
+    }
+    add_action('init', 'my_plugin_set_callback_logs', 1);
+
+**Note that this will not perform any escaping of any kind on the supplied data.**

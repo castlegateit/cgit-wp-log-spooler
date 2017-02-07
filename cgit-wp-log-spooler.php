@@ -5,7 +5,7 @@
 Plugin Name: Castlegate IT WP Log Spooler
 Plugin URI: http://github.com/castlegateit/cgit-wp-log-spooler
 Description: Provides a page within WP admin to spool any logs.
-Version: 2.0
+Version: 2.1
 Author: Castlegate IT
 Author URI: http://www.castlegateit.co.uk/
 License: MIT
@@ -91,9 +91,9 @@ if (!class_exists('CGIT_Log_Spooler')) {
             // Loop through logs array
             foreach (self::$log_sources as $key => $settings) {
 
-                // Disregard anything without a `dir`, `label` or `query` index
+                // Disregard anything without a callback, or a `dir`, `label` or `query` index
                 if (empty($settings['label']) ||
-                        (empty($settings['dir']) && empty($settings['query']))
+                        (empty($settings['dir']) && empty($settings['query']) && empty($settings['callback']))
                 ) {
                     continue;
                 }
@@ -108,6 +108,12 @@ if (!class_exists('CGIT_Log_Spooler')) {
                             'files' => $files
                         );
                     }
+                } else if (!empty($settings['callback'])) {
+                    // Accept the incoming data and move it into array for spooling.
+                    $data = $settings['callback'];
+                    self::$logs[$key] = array (
+                        'callback' => $data
+                    );
                 } else {
                     // Run the query
                     if ($result = self::$wpdb->get_results($settings['query'], ARRAY_A)) {
@@ -168,6 +174,10 @@ if (!class_exists('CGIT_Log_Spooler')) {
 
                         <p> &bull; <a href="<?php echo $_SERVER['REQUEST_URI']; ?>&amp;cgit_log_key=<?=$key; ?>&amp;cgit_log_index=result"><?=self::$log_sources[$key]['label']?></a></p>
 
+                    <?php elseif (count($resources)==1 && !empty($resources['callback'])) : ?>
+
+                        <p> &bull; <a href="<?php echo $_SERVER['REQUEST_URI']; ?>&amp;cgit_log_key=<?=$key; ?>&amp;cgit_log_index=callback"><?=self::$log_sources[$key]['label']?></a></p>
+
                     <?php else : ?>
 
                         <h3><?=self::$log_sources[$key]['label']?></h3>
@@ -224,6 +234,31 @@ if (!class_exists('CGIT_Log_Spooler')) {
                         readfile($path . $filename);
                         exit();
                     }
+                } elseif (!empty($resource['callback'])) {
+
+                    $first_row = true;
+
+                    $filename = self::$log_sources[$key]['label'] . '.csv';
+
+                    header("Content-type: text/csv");
+                    header("Content-Disposition: attachment; filename=" . $filename);
+                    header("Pragma: no-cache");
+                    header("Expires: 0");
+                    $fh = fopen('php://output','w');
+
+                    foreach ($resource['callback'] as $row) {
+                        if ($first_row) {
+                            // Spool the header
+                            fputcsv($fh, array_keys($row));
+                            $first_row = false;
+                        }
+
+                        fputcsv($fh, $row);
+                    }
+
+                    fclose($fh);
+                    exit();
+
                 } else if (!empty($resource['result'])) {
 
                     $first_row = true;
