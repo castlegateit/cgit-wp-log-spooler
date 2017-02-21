@@ -60,7 +60,7 @@ You can provide arrays of custom data instead. The results of the passed data wi
 
         global $wpdb;
 
-        $json = $wpdb->get_results("SELECT field_data as 'Data', date as 'Date and time', id as 'ID' FROM sirn_cgit_postman_log WHERE form_id = 'membership' ORDER BY date DESC");
+        $json = $wpdb->get_results("SELECT field_data as 'Data', date as 'Date and time', id as 'ID' FROM example_cgit_postman_log WHERE form_id = 'membership' ORDER BY date DESC");
 
         foreach ($json as $row) {
 
