@@ -5,7 +5,7 @@
 Plugin Name: Castlegate IT WP Log Spooler
 Plugin URI: http://github.com/castlegateit/cgit-wp-log-spooler
 Description: Provides a page within WP admin to spool any logs.
-Version: 2.1
+Version: 2.1.1
 Author: Castlegate IT
 Author URI: http://www.castlegateit.co.uk/
 License: MIT
@@ -263,16 +263,17 @@ if (!class_exists('CGIT_Log_Spooler')) {
 
                     $first_row = true;
 
+                    $filename = self::$log_sources[$key]['label'] . '.csv';
+
+                    header("Content-type: text/csv");
+                    header("Content-Disposition: attachment; filename=" . $filename);
+                    header("Pragma: no-cache");
+                    header("Expires: 0");
+
+                    $fh = fopen('php://output','w');
+
                     foreach ($resource['result'] as $row) {
 
-                        $filename = self::$log_sources[$key]['label'] . '.csv';
-
-                        header("Content-type: text/csv");
-                        header("Content-Disposition: attachment; filename=" . $filename);
-                        header("Pragma: no-cache");
-                        header("Expires: 0");
-
-                        $fh = fopen('php://output','w');
                         if ($first_row) {
                             // Spool the header
                             fputcsv($fh, array_keys($row));
@@ -280,9 +281,9 @@ if (!class_exists('CGIT_Log_Spooler')) {
                         }
 
                         fputcsv($fh, $row);
-                        fclose($fh);
-                        exit();
                     }
+                    fclose($fh);
+                    exit();
                 }
             }
         }
