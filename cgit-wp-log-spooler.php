@@ -211,21 +211,23 @@ if (!class_exists('CGIT_Log_Spooler')) {
                   isset($_GET['cgit_log_index']) &&
                   current_user_can('edit_pages') &&
                   array_key_exists($_GET['cgit_log_key'], self::$log_sources) &&
-                  array_key_exists($_GET['cgit_log_key'], self::$logs)
+                  array_key_exists($_GET['cgit_log_index'], self::$logs)
             ) {
 
                 $key = $_GET['cgit_log_key'];
+                $file_index = $_GET['cgit_log_index'];
+
                 $resource = self::$logs[$key];
 
                 // Is it a file or a query result?
 
                 if (!empty($resource['files'])) {
 
-                    if (array_key_exists($key, $resource['files'])) {
+                    if (array_key_exists($file_index, $resource['files'])) {
 
                         // Build the filename and path
                         $path = self::$log_sources[$key]['dir'] . '/';
-                        $filename = $resource['files'][$key];
+                        $filename = $resource['files'][$file_index];
 
                         header("Content-type: text/csv");
                         header("Content-Disposition: attachment; filename=" . $filename);
