@@ -5,7 +5,7 @@
 Plugin Name: Castlegate IT WP Log Spooler
 Plugin URI: http://github.com/castlegateit/cgit-wp-log-spooler
 Description: Provides a page within WP admin to spool any logs.
-Version: 2.1.1
+Version: 2.1.2
 Author: Castlegate IT
 Author URI: http://www.castlegateit.co.uk/
 License: MIT
