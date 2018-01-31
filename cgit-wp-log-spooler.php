@@ -211,7 +211,6 @@ if (!class_exists('CGIT_Log_Spooler')) {
                   isset($_GET['cgit_log_index']) &&
                   current_user_can('edit_pages') &&
                   array_key_exists($_GET['cgit_log_key'], self::$log_sources) &&
-                  array_key_exists($_GET['cgit_log_index'], self::$logs)
             ) {
 
                 $key = $_GET['cgit_log_key'];
