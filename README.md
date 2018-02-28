@@ -1,4 +1,4 @@
-# CGIT WP Log Spoller
+# CGIT WP Log Spooler
 
 Castlegate IT WP Log Spooler allows downloads of csv log files from within the WordPress administration system. These can be either spooled directly from the local filesystem or generated on the fly from a custom MySQL query.
 
