@@ -230,11 +230,12 @@ if (!class_exists('CGIT_Log_Spooler')) {
 
                         header("Content-type: text/csv");
                         header("Content-Disposition: attachment; filename=" . $filename);
-                        header("Pragma: no-cache");
+                        header("Cache-Control: private");
                         header("Expires: 0");
                         readfile($path . $filename);
                         exit();
                     }
+
                 } elseif (!empty($resource['callback'])) {
 
                     $first_row = true;
@@ -243,7 +244,7 @@ if (!class_exists('CGIT_Log_Spooler')) {
 
                     header("Content-type: text/csv");
                     header("Content-Disposition: attachment; filename=" . $filename);
-                    header("Pragma: no-cache");
+                    header("Cache-Control: private");
                     header("Expires: 0");
                     $fh = fopen('php://output','w');
 
@@ -268,7 +269,7 @@ if (!class_exists('CGIT_Log_Spooler')) {
 
                     header("Content-type: text/csv");
                     header("Content-Disposition: attachment; filename=" . $filename);
-                    header("Pragma: no-cache");
+                    header("Cache-Control: private");
                     header("Expires: 0");
 
                     $fh = fopen('php://output','w');
