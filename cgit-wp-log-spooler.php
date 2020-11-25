@@ -5,7 +5,7 @@
 Plugin Name: Castlegate IT WP Log Spooler
 Plugin URI: http://github.com/castlegateit/cgit-wp-log-spooler
 Description: Provides a page within WP admin to spool any logs.
-Version: 2.1.2
+Version: 2.2.0
 Author: Castlegate IT
 Author URI: http://www.castlegateit.co.uk/
 License: MIT
@@ -55,9 +55,6 @@ if (!class_exists('CGIT_Log_Spooler')) {
 
             // Add WordPress menu
             add_action('admin_menu', array(__CLASS__,'add_download_page'));
-
-            // Scan for logs
-            self::scan_for_logs();
 
             // Spool any downloads
             self::spool_download();
@@ -155,6 +152,8 @@ if (!class_exists('CGIT_Log_Spooler')) {
          */
         static function logs_page()
         {
+            // Scan for logs
+            self::scan_for_logs();
         ?>
         <div class="wrap">
 
@@ -212,6 +211,8 @@ if (!class_exists('CGIT_Log_Spooler')) {
                   current_user_can('edit_pages') &&
                   array_key_exists($_GET['cgit_log_key'], self::$log_sources)
             ) {
+                // Scan for logs
+                self::scan_for_logs();
 
                 $key = $_GET['cgit_log_key'];
                 $file_index = $_GET['cgit_log_index'];
